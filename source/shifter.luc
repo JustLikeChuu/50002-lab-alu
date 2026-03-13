@@ -4,10 +4,82 @@ module shifter (
     input alufn[6],
     output shift[32]
 ) {
-
+    
+    // Instantiate 32 of your mux2to1 modules for each of the 5 shift layers
+    mux2to1 mux16[32];
+    mux2to1 mux8[32];
+    mux2to1 mux4[32];
+    mux2to1 mux2[32];
+    mux2to1 mux1[32];
+    
+    // Intermediate signals
+    sig a_in[32];
+    sig pad;
+    sig reversed_a[32];
+    sig reversed_out[32];
+    
     always {
-        // implement shifter unit logic here
-        shift = 0
+        // 32-bit bit reverse -> flips the bit order of a
+        repeat(i, 32) {
+            reversed_a[i] = a[31 - i];
+            // bit 31 becomes bit 0, etc.
+        }
         
-    } 
+        // 32x mux that chooses input
+        if (alufn[0] == 0) {
+            a_in = a;
+            // SHL (0) needs normal input
+        } else {
+            a_in = reversed_a;
+            // SHR/SRA (1) needs reversed input
+        }
+        
+        // regular mux for SHR/SRA
+        // if alufn[1:0] is 11, pad with a[31], else pad with 0
+        if (alufn[1:0] == 2b11) {
+            pad = a[31];
+        } else {
+            pad = 0;
+        }
+        
+        // 5 layer barrel shifter
+        // Layer 4: Shift by 16
+        mux16.s = 32x{b[4]}; // connect B[4] to the selector pin of all 32 muxes
+        // based on B[4] value -> either 0 or 1
+        mux16.data0 = a_in; // No shift
+        mux16.data1 = c{a_in[15:0], 16x{pad}}; // Shift left by 16
+        
+        // Layer 3: Shift by 8
+        mux8.s = 32x{b[3]};
+        mux8.data0 = mux16.y;
+        mux8.data1 = c{mux16.y[23:0], 8x{pad}}; // Shift left by 8
+        
+        // Layer 2: Shift by 4
+        mux4.s = 32x{b[2]};
+        mux4.data0 = mux8.y;
+        mux4.data1 = c{mux8.y[27:0], 4x{pad}}; // Shift left by 4
+        
+        // Layer 1: Shift by 2
+        mux2.s = 32x{b[1]};
+        mux2.data0 = mux4.y;
+        mux2.data1 = c{mux4.y[29:0], 2x{pad}}; // Shift left by 2
+        
+        // Layer 0: Shift by 1
+        mux1.s = 32x{b[0]};
+        mux1.data0 = mux2.y;
+        mux1.data1 = c{mux2.y[30:0], 1x{pad}}; // Shift left by 1
+        
+        // always compute the reversed version for SHR/SRA
+        repeat(i, 32) {
+            reversed_out[i] = mux1.y[31 - i];
+        }
+        
+        // left shift (alufn[0] == 0), output the normal result
+        // right shift (alufn[0] == 1), output the re-reversed result
+        if (alufn[0] == 0) {
+            shift = mux1.y; 
+        } else {
+            shift = reversed_out;
+        }
+    }
 }

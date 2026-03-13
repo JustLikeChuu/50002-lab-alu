@@ -1,0 +1,17 @@
+module rca32 (
+    input a[32],
+    input b[32],
+    input cin,
+    output cout,
+    output s[32]
+) {
+    rca rca(#SIZE(32))
+    
+    always {
+        rca.a = a
+        rca.b = b
+        rca.cin = cin
+        cout = rca.cout
+        s = rca.s
+    }
+}

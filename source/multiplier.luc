@@ -3,9 +3,48 @@ module multiplier (
     input b[32],
     output mul[32]
 ) {
+    rca32 adder[31]    // no parameter needed, always 32-bit
+    
+    sig partial_products[32][32]
+    sig shifted[32][32]
+    sig zeros[32] 
     
     always {
-        // implement multiplier unit logic here
-        mul = 0 
+        zeros = 0
+        
+        repeat(i, 32) { // generate 32 rows of basic AND gate multiplication
+            partial_products[i] = a & 32x{b[i]}
+        }
+        
+        shifted[0] = partial_products[0] // since first row does not need to be shifted, just copy directly
+        repeat(i, 31) {
+            // zeros[i:0] gives 1 zero bit to put on the right side
+            // partial_products[i+1][30-i:0] grabs the bottom 31 bits of the data and chops off the top bit
+            // then add them together -> c{31 bits of data, 1 bit of zero} -> 32 bits, shifted left by 1
+            // as i increases, number of zeros grows, and the number of data bits kept shrinks
+            // simulates left shift that throws away the overflowing bits
+            shifted[i+1] = c{partial_products[i+1][30-i:0], zeros[i:0]}
+        }
+        
+        // build chain of 31 adders to sum up 32 shifted rows
+        // adder[0] starts the chain
+        adder.cin[0] = 0
+        adder.a[0] = shifted[0]
+        adder.b[0] = shifted[1]
+        
+        // chain reaction
+        repeat(i, 30) {
+            // loop adder[1] till adder[30]
+            adder.cin[i+1] = 0
+            adder.a[i+1] = adder.s[i] 
+            // connects the output sum (s) of the previous adder into the input (a) of the current adder
+            // the running total
+            adder.b[i+1] = shifted[i+2]
+            // feeds the very next shifted row into the other input (b) of the current adder
+        }
+        
+        mul = adder.s[30]
+        // final answer
+        // just wire it to the main mul output
     }
 }

@@ -8,11 +8,19 @@ module rca #(
     output cout,
     output s[SIZE]
 ) {
+    fa full_adder[SIZE]
     
     always {
         // implement ripple-carry-adder logic here 
-        cout = 0
-        s = 0 
-        
+        full_adder.a = a
+        full_adder.b = b
+        full_adder.cin[0] = cin
+
+        repeat(i, SIZE - 1) {
+            full_adder.cin[i + 1] = full_adder.cout[i]
+        }
+
+        s = full_adder.s
+        cout = full_adder.cout[SIZE - 1]
     }
 }

@@ -3,20 +3,41 @@ module adder #(
 )(
     input a[SIZE],
     input b[SIZE],
-    input alufn0,
-    output s[SIZE],
-    output z,
-    output v,
-    output n
+    input alufn0, // 1 bit control signal
+    output s[SIZE], // 32 bit output
+    output z, // zero flag
+    output v, // overflow flag
+    output n // negative flag
 ) {
     
+    rca rca (#SIZE(SIZE))
+    
+    sig xb[SIZE] 
+    // intermediate signal that inverts b before passing it to the RCA
+    // single 32 bit wide signal
     
     always {
         // implement adder/subtractor unit logic here
-        out = 0
-        z = 0
-        v = 0 
-        n = 0
+        // XOR each bit of alufn0 -> bit-flipped version
+        xb = b ^ SIZE x{alufn0} // b input, 32 times of alufn signal
+        rca.a = a
+        rca.b = xb
+        rca.cin = alufn0 // for two's complement (signed) -> carry in 
+        // when alufn0 = 0 (add): xb = b ^ 0 = b, cin = 0 → computes a + b
+        // when alufn0 = 1 (subtract): xb = b ^ 1 = ~b, cin = 1 → computes a + ~b + 1 = a - b
         
+        s = rca.s
+        
+        // z == 1 if s is 0 -> NOR of all result bits, true if only every bit is 0
+        z = ~|rca.s 
+        
+        // v is true only if rca overflows
+        // happens when two operands of the same sign produce a result of the opposite sign
+        v = (a[SIZE - 1] & xb[SIZE - 1] & !rca.s[SIZE - 1]) | (!a[SIZE - 1] & !xb[SIZE - 1] & rca.s[SIZE - 1])
+        // uses xb because after XOR, xb represents the actual second operand being fed to the adder
+        
+        // true when s is negative -> picks the MSB directly to n
+        // MSB of result -> true if result is negative (signed)
+        n = rca.s[SIZE - 1]
     }
 }

@@ -9,9 +9,8 @@ module fa (
     
     always {
         // implement 1-bit full adder logic here
-        s = 0
-        cout = 0 
-        
+        s = a ^ b ^ cin // ^ = XOR
+        cout = (a&b) | (a&cin) | (b&cin) 
     }
     
 }

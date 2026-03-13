@@ -7,11 +7,17 @@ module boolean #(
     output bool[SIZE]
 ) {
     
+    mux4to1 mux4to1[SIZE]  // 32 copies
     
     always {
         // implement boolean unit logic here
-        bool = 0 
-        
+        mux4to1.data0 = SIZE x{alufn[0]}  // a=0, b=0
+        mux4to1.data1 = SIZE x{alufn[1]}  // a=0, b=1
+        mux4to1.data2 = SIZE x{alufn[2]}  // a=1, b=0
+        mux4to1.data3 = SIZE x{alufn[3]}  // a=1, b=1
+        mux4to1.s0 = a                     // a[i] is the LSB selector
+        mux4to1.s1 = b                     // b[i] is the MSB selector
+        bool = mux4to1.y
     }
     
 }

@@ -19,7 +19,6 @@ module tester_manual_alu#(
         alu.alufn = 0
         io_led = 3x{{8h0}}
         io_segment = 0
-        io_select = 4hF
-        
+        io_select = 4hF    
     }
 }

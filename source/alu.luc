@@ -8,13 +8,57 @@ module alu (
     output n
 ) {
     
-    
+    adder adder(#SIZE(32))
+    compare compare
+    boolean boolean(#SIZE(32))
+    shifter shifter
+    multiplier multiplier 
     
     always {
         // implement alu logic here
-        out = 0 
-        z = 0
-        v = 0 
-        n = 0    
+        adder.a = a;
+        adder.b = b;
+        adder.alufn0 = alufn[0];
+
+        z = adder.z;
+        v = adder.v;
+        n = adder.n;
+
+        //out = adder.s;
+        
+        // compare (needs z, v, n from adder)
+        compare.z = adder.z
+        compare.v = adder.v
+        compare.n = adder.n
+        compare.alufn = alufn
+        
+        // boolean
+        boolean.a = a
+        boolean.b = b
+        boolean.alufn = alufn
+        
+        // shifter
+        shifter.a = a              
+        shifter.b = b[4:0]         // b is 32 bits but shifter only needs 5
+        shifter.alufn = alufn
+        
+        // multiplier
+        multiplier.a = a         
+        multiplier.b = b
+        
+        // select output based on alufn[5:4]
+        case (alufn[5:4]) {
+            2b00: 
+                // alufn[1] is 1 for MUL (000010), 0 for ADD (000000) and SUB (000001)
+                if (alufn[1] == 1) {
+                    out = multiplier.mul
+                } else {
+                    out = adder.s                    // add/subtract
+                }
+            2b01: out = boolean.bool               // boolean
+            2b10: out = shifter.shift
+            2b11: out = c{31x{b0}, compare.cmp}   // compare
+            default: out = 0
+        }
     }
 }
