@@ -1,0 +1,106 @@
+module automated_alu_fsm_tester (
+    input clk,  // clock
+    input rst,  // reset
+    input slowclk, 
+    input start_press,    //assign to button to 'start'    
+    input equal,    //feedback signal from datapath to FSM
+    input last_index,    //feedback signal from datapath to FSM
+    output index_load_zero,    //feedback signal from FSM to datapath 
+    output index_inc,    //feedback signal from FSM to datapath
+    output sample_enable,    //feedback signal from FSM to datapath 
+    output running,
+    output error, 
+    output state_debug[8] // will be connected to led[5:0], i.e. only lower 6 bits used -- optional but helpful for debugging
+) { 
+    
+    enum States {
+        IDLE, 
+        INIT, 
+        INC,
+        WAIT_1, 
+        WAIT_2, 
+        CHECK,
+        HALT_ERROR
+    }
+    
+    
+    dff states[$width(States)](.clk(clk), .rst(rst), #INIT(States.IDLE))    //pass in the enum states into a dff register with starting state at IDLE
+    sig slowclk_edge_rise
+    sig start_press_edge_rise
+    
+    edge_detector slowclk_edge(#RISE(1), #FALL(0), .clk(clk), .in(slowclk))    
+    edge_detector start_press_edge(#RISE(1), #FALL(0), .clk(clk), .in(start_press))    //pulse component: generates pulse on rising edge wrt start_press 
+    
+    always {
+        
+        index_load_zero = 0
+        index_inc = 0
+        sample_enable = 0
+        running = 0
+        error = 0
+        state_debug = 8h00
+        
+        states.d = states.q
+        
+        slowclk_edge_rise = slowclk_edge.out
+        start_press_edge_rise = start_press_edge.out
+        
+        case (states.q){
+            States.IDLE:
+                state_debug = 8h00
+                if (start_press_edge_rise) {
+                    states.d = States.INIT
+                }
+                
+            States.INIT:
+                state_debug = 8h01
+                index_load_zero = 1
+                // goes to datapath and reset ROM array back to test case 0
+                
+                states.d = States.WAIT_1
+                
+            States.WAIT_1:
+                state_debug = 8h01
+                sample_enable = 1
+                running = 1
+                
+                states.d = States.WAIT_2
+                
+            States.WAIT_2:
+                state_debug = 8h01
+                sample_enable = 1
+                running = 1
+                
+                states.d = States.CHECK
+                
+            States.CHECK:
+                state_debug = 8h01
+                running = 1
+                
+                if (slowclk_edge_rise & equal & last_index) {
+                    states.d = States.IDLE
+                } else if (slowclk_edge_rise  & equal & ~last_index) {
+                    states.d = States.INC // math is right, but there are more tests
+                } else if (slowclk_edge_rise  & ~equal) {
+                    states.d = States.HALT_ERROR // only if math is wrong
+                }
+                
+            States.INC:
+                index_inc = 1
+                running = 1
+                // load the next test case
+                states.d = States.WAIT_1
+                
+            States.HALT_ERROR:
+                state_debug = 8h02
+                error = 1
+                if (start_press_edge_rise) {
+                    states.d = States.INIT
+                }
+                
+             
+                
+        }
+        
+    }
+}

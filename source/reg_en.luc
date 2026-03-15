@@ -1,0 +1,22 @@
+module reg_en #(SIZE = 1: SIZE > 0, INIT = 0) (
+    input clk,  // clock
+    input rst,  // reset
+    input d[SIZE],
+    input en,
+    output q[SIZE]
+    
+) {
+    
+    dff regs[SIZE](.clk(clk), .rst(rst), #INIT(INIT))
+    
+    always {
+        q = regs.q;
+        
+        if (en) {
+            regs.d = d;
+        } else {
+            regs.d = regs.q;
+        }
+    
+    }
+}

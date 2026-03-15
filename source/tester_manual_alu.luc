@@ -13,12 +13,37 @@ module tester_manual_alu#(
     alu alu
     
     always {
-        // implement alu tester logic here
-        alu.a = 0
-        alu.b = 0
-        alu.alufn = 0
-        io_led = 3x{{8h0}}
-        io_segment = 0
-        io_select = 4hF    
+        // Turn off the 7-segment displays so they don't blind you (they are active-low)
+        io_segment = 8hFF;
+        io_select = 4hF;    
+        
+        // ==========================================
+        // 1. INPUT MAPPING (Switches -> ALU)
+        // ==========================================
+        
+        // ALUFN: Use the bottom 6 switches of the left bank
+        alu.alufn = io_dip[2][5:0];
+        
+        // Input A: Use the 8 switches of the middle bank, pad top 24 bits with 0
+        alu.a = c{24h000000, io_dip[1]};
+        
+        // Input B: Use the 8 switches of the right bank, pad top 24 bits with 0
+        alu.b = c{24h000000, io_dip[0]};
+        
+        // ==========================================
+        // 2. OUTPUT MAPPING (ALU -> LEDs)
+        // ==========================================
+        
+        // Display the lowest 8 bits of the ALU output on the right LEDs
+        io_led[0] = alu.out[7:0];
+        
+        // Display the next 8 bits of the ALU output on the middle LEDs (useful for overflow/shifts)
+        io_led[1] = alu.out[15:8];
+        
+        // Display Z, V, and N flags on the left LEDs
+        io_led[2][7:3] = 0;       // Keep the top 5 LEDs off
+        io_led[2][2] = alu.z;     // LED 2 = Z (Zero)
+        io_led[2][1] = alu.v;     // LED 1 = V (Overflow)
+        io_led[2][0] = alu.n;     // LED 0 = N (Negative)  
     }
 }

@@ -1,0 +1,73 @@
+module automated_alu_datapath_tester (
+    input clk,  
+    input rst,  
+    input index_inc,        
+    input index_load_zero,    
+    input sample_enable,     
+    input force_error,
+    input alufn[6],
+    output index[8],     
+    output last_index,    
+    output equal,    
+    output debug_alu_s[32],    
+    output debug_test_s[32]
+) {
+    
+    const NUM_TEST_CASES = 8
+    dff test_index[$clog2(NUM_TEST_CASES)](.clk(clk), .rst(rst), #INIT(0)) // counter
+    alu_test_values atv(.index(test_index.q), .alufn(alufn)) // ROM lookup table, feed current test index and give test outputs
+    registered_alu ralu(.clk(clk), .rst(rst), #SIZE(32), .a(atv.a), .b(atv.b), .alufn(alufn), .enable(sample_enable))
+    reg_en test_pipeline_1(.clk(clk), .rst(rst), #SIZE(32), .en(sample_enable)) // holds for 1 cycle
+    reg_en test_pipeline_2(.clk(clk), .rst(rst), #SIZE(32), .en(sample_enable)) // holds for another cycle
+    // latency matching -> pipeline delay
+    
+    sig effective_s[32]
+    
+    always {
+
+        test_index.d = test_index.q
+        index = test_index.q
+        effective_s = ralu.s
+        
+        // index and index reset connections
+        // fill in the space below with connections for index_inc and index_load_zero
+        if (index_load_zero) {
+            test_index.d = 0
+        } else if (index_inc) {
+            test_index.d = test_index.q + 1
+        } else {
+            test_index.d = test_index.q
+        }
+        
+        
+        // pipeline connection
+        // fill in the space below with connections for the test pipeline regs
+        test_pipeline_1.d = atv.s
+        test_pipeline_2.d = test_pipeline_1.q
+        
+        
+        
+        // force error
+        // fill in the space below with logic for forcing an error into the registered RCA sum output
+        if (force_error) {
+            effective_s = ralu.s ^ 8h01
+        }
+        
+        
+        // comparator 
+        // complete the expression below for the 'equal' output
+        equal = &(effective_s ^~ test_pipeline_2.q) // reduction AND (bitwise XNOR)
+        // compares bit by bit, and if both bits are the same it outputs a 1
+        
+        // last index checker
+        // complete the expression below for the 'last_index' output
+        last_index = &test_index.q
+        
+        // debug signals 
+        debug_alu_s = effective_s
+        debug_test_s = test_pipeline_2.q
+        
+        
+        
+    }
+}
