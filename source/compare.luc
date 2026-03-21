@@ -6,9 +6,27 @@ module compare (
     output cmp
 ) {
     
+    mux4to1 mux
+    
     always {
         // implement comparison logic here
-        cmp = 0
+        
+        // Assign selectors: ALUFN signals
+        mux.s0 = alufn[1]
+        mux.s1 = alufn[2]
+        
+        // Assign comparison inputs
+        mux.data0 = 0 // unused
+        mux.data1 = z // CMPEQ: A = B
+        mux.data2 = n ^ v // CMPLT: A < B
+        mux.data3 = (n ^ v) | z // CMPLE: A <= B
+        
+        // Output result
+        cmp = mux.y
+
+     
+        // alternate implementation using case statement
+        /* cmp = 0
         
         case (alufn[2:1]) {
             // input 1 = z
@@ -19,6 +37,6 @@ module compare (
             2b11: cmp = z | (v ^ n) // less than or equal
             // default = 0 (unused)
             default : cmp = 0
-        }
+        } */
     }
 }

@@ -7,7 +7,6 @@ module alu (
     output v,
     output n
 ) {
-    
     adder adder(#SIZE(32))
     compare compare
     boolean boolean(#SIZE(32))

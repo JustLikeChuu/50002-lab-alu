@@ -1,4 +1,4 @@
-module alu_test_values (
+module tester_auto_testvalues (
     input index[3],
     input alufn[6],
     output a[32],

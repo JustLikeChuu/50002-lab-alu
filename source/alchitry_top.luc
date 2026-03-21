@@ -13,122 +13,39 @@ module alchitry_top (
     
     sig rst                 // reset signal
     
-    .clk(clk) {
-        // The reset conditioner is used to synchronize the reset signal to the FPGA
-        // clock. This ensures the entire FPGA comes out of reset at the same time.
-        reset_conditioner reset_cond
-    }
-    
-    //const CLK_FREQ = $is_sim() ? 1000 : 100000000 // put 1000 for sim, 100000000 otherwise in hardware
+    const CLK_FREQ = $is_sim() ? 1000 : 100000000 // put 1000 for sim, 100000000 otherwise in hardware
     
     //tester_manual_alu alu_manual(.clk(clk), .rst(rst), .io_button(io_button), .io_dip(io_dip), #CLK_FREQ(CLK_FREQ)) 
     
-    fsm_capture fsm(.clk(clk), .rst(rst), .next_button(io_button[0]), .high_low_button(io_button[1]))
-    alu alu(.a(fsm.a), .b(fsm.b), .alufn(io_dip[2][5:0]))
+    // Module instantiation
+    reset_conditioner reset_cond(.clk(clk)) // Reset conditioner
+    button_conditioner next_button(.clk(clk), #CLK_FREQ(CLK_FREQ), .in(io_button[0])) // Button conditioner
     
-    counter slow_clock(#DIV(9), .clk(clk), .rst(rst))
-    automated_alu_fsm_tester aaft (.clk(clk), .rst(rst), .slowclk(slow_clock.value), .start_press(io_button[0]))
-    automated_alu_datapath_tester aadt(.clk(clk), .rst(rst), .force_error(io_dip[0][0]))
-    
+    // Create alu testers
+    tester_manual_alu alu_manual(.clk(clk), .rst(rst), .io_dip(io_dip), .next_button(next_button.out), .high_button(io_button[1]), #CLK_FREQ(CLK_FREQ)) 
+    tester_auto_alu alu_auto(.clk(clk), .rst(rst), .io_button(io_button), .io_dip(io_dip), .next_button(next_button.out))
+    // Create auto alu tester
+
     always {
-        //reset_cond.in = ~rst_n  // input raw inverted reset signal
-        //rst = reset_cond.out    // conditioned reset
-        //led = 8h00             // turn LEDs off
-        //usb_tx = usb_rx          // loop serial port
- 
-        // to test ALU 
-        //io_segment = alu_manual.io_segment
-        //io_select = alu_manual.io_select         
-        //io_led = alu_manual.io_led
-
-        reset_cond.in = ~rst_n
-        rst = reset_cond.out
-        usb_tx = usb_rx
+        reset_cond.in = ~rst_n  // input raw inverted reset signal
+        rst = reset_cond.out    // conditioned reset    
+        usb_tx = usb_rx         // loop serial port
         
-        led = 8h00
+        led = 8h00 // turn LEDs off  
         io_led = 3x{{8h00}}
-        io_segment = 8hFF
-        io_select = 4b1111
-        fsm.dip_switches = 16h0000
-        aaft.equal = 0
-        aaft.last_index = 0
-        aadt.index_inc = 0
-        aadt.index_load_zero = 0
-        aadt.sample_enable = 0
-        aadt.alufn = 0
+        io_segment = 8hff
+        io_select = 4hf
         
-        if (io_dip[2][7]) { // if on, manual mode
-            led[2:0] = fsm.state_debug
-        
-            fsm.dip_switches[7:0] = io_dip[0]
-            fsm.dip_switches[15:8] = io_dip[1]
-        
-            case (fsm.state_debug) {
-                3b001:
-                    io_led[0] = fsm.a[7:0]
-                    io_led[1] = fsm.a[15:8]
-                    if (fsm.show) {
-                        io_led[0] = fsm.a[23:16]
-                        io_led[1] = fsm.a[31:24]
-                    }
-                3b010:
-                    io_led[0] = fsm.a[23:16]
-                    io_led[1] = fsm.a[31:24]
-                    if (fsm.show) {
-                        io_led[0] = fsm.a[7:0]
-                        io_led[1] = fsm.a[15:8]
-                    }
-                3b011:
-                    io_led[0] = fsm.b[7:0]
-                    io_led[1] = fsm.b[15:8]
-                    if (fsm.show) {
-                        io_led[0] = fsm.b[23:16]
-                        io_led[1] = fsm.b[31:24]
-                    }
-                3b100:
-                    io_led[0] = fsm.b[23:16]
-                    io_led[1] = fsm.b[31:24]
-                    if (fsm.show) {
-                        io_led[0] = fsm.b[7:0]
-                        io_led[1] = fsm.b[15:8]
-                    }
-            }
-            
-        
-        
-            if (io_dip[2][6]) {
-                io_led[0] = alu.out[7:0]
-                io_led[1] = alu.out[15:8]
-                io_led[2][2] = alu.z
-                io_led[2][1] = alu.v
-                io_led[2][0] = alu.n
-                if (io_button[1]) {
-                    io_led[0] = alu.out[23:16]
-                    io_led[1] = alu.out[31:24]
-                }
-           }
-
-        } else {
-        // else, automated mode
-            aaft.equal = aadt.equal
-            aaft.last_index = aadt.last_index
-        
-            aadt.index_inc = aaft.index_inc
-            aadt.index_load_zero = aaft.index_load_zero
-            aadt.sample_enable = aaft.sample_enable
-            aadt.alufn = io_dip[2][5:0]
-        
-            led = aadt.index
-            io_led[2][7] = aaft.running
-            io_led[2][6] = aaft.error
-            io_led[2][5:0] = aaft.state_debug
-            io_led[0] = aadt.debug_alu_s[7:0]
-            io_led[1] = aadt.debug_alu_s[15:8]
-            if (io_button[1]) {
-                io_led[0] = aadt.debug_alu_s[23:16]
-                io_led[1] = aadt.debug_alu_s[31:24]
-            }
-
+        // Display output based on mode
+        if (io_dip[2][7]) { // Manual Mode
+            io_segment = alu_manual.io_segment
+            io_select = alu_manual.io_select
+            io_led = alu_manual.io_led
+        } else { // Automatic Mode
+            io_segment = alu_auto.io_segment
+            io_select = alu_auto.io_select
+            io_led = alu_auto.io_led
+            led = alu_auto.led
         }
     }
 }

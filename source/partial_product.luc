@@ -1,0 +1,25 @@
+module partial_product #(
+    SIZE = 32 : SIZE > 0,
+    SHIFT = 0 : SHIFT > 0 & SHIFT < SIZE
+)(
+    input a[SIZE], // multiplicand
+    input b_bit, // single bit of multiplier
+    output pp[SIZE] // partial product row
+) {
+    x_bit_left_shifter lsh(#SIZE(SIZE), #SHIFT(SHIFT))
+    mux2to1 mux_mult[SIZE]
+    
+    always {
+        // Left shift A by shift amount
+        lsh.a = a
+        lsh.pad = 0
+        lsh.do_shift = 1
+        
+        // Multiply A with B using a MUX
+        mux_mult.s = SIZEx{b_bit}
+        mux_mult.data0 = SIZEx{1b0} // x0, return all 0s
+        mux_mult.data1 = lsh.out // x1, return left shifted A
+        
+        pp = mux_mult.y
+    }
+}

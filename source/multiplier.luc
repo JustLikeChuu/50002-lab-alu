@@ -23,7 +23,8 @@ module multiplier (
             // then add them together -> c{31 bits of data, 1 bit of zero} -> 32 bits, shifted left by 1
             // as i increases, number of zeros grows, and the number of data bits kept shrinks
             // simulates left shift that throws away the overflowing bits
-            shifted[i+1] = c{partial_products[i+1][30-i:0], zeros[i:0]}
+            //shifted[i+1] = c{partial_products[i+1][30-i:0], zeros[i:0]}
+            shifted[i+1] = partial_products[i+1] << (i+1)
         }
         
         // build chain of 31 adders to sum up 32 shifted rows
